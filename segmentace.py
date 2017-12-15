@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import sys
 import itertools
 from collections import defaultdict
 import logging
@@ -89,7 +90,7 @@ class DeriNetParser:
 		if line:
 			line = line.rstrip('\n')
 			id, lemma, techlemma, pos, parent = line.split('\t')
-			return Lexeme(lemma, id=id, parent_id=parent)
+			return Lexeme(lemma, id=id)#, parent_id=parent)
 		else:
 			raise StopIteration()
 
@@ -155,7 +156,7 @@ class MorfFlexDatabase:
 	def __init__(self, parser, derinet_db):
 		form_to_lexemes = derinet_db.lemma_to_lexemes
 		lexemes = list(derinet_db.id_to_lexeme.values())
-		with MorfFlexParser(morfflex_file_name, derinet_db) as morfflex:
+		with MorfFlexParser(parser, derinet_db) as morfflex:
 			for lexeme in morfflex:
 				# If the lexeme is in the database already, we have to ensure it has a different parent (or no parent at all).
 				# Otherwise don't add duplicates.
@@ -226,26 +227,29 @@ class Segmentace:
 		
 		lemmas = []
 		tagger = None
-		if morpho_file_name is not None:
-			logger.info("Loading morphology")
-			if morphodita_available:
-				tagger = Tagger.load(morpho_file_name)
-			else:
-				logger.error("You need to install the MorphoDiTa Python bindings!")
-			
-			if not tagger:
-				logger.critical("Cannot load morphological dictionary from file '%s'.",  morpho_file_name)
-				sys.exit(1)
-			
-			lemmas = TaggedLemmas()
-			logger.info("Morphology loaded.")
-		else:
-			logger.info("No morphological dictionary specified. Inflectional morphology will not be available.")
-			tagger = None
 		
 		self.db = db
 		self.tagger = tagger
 		self.lemmas = lemmas
+		self.morpho_file_name = morpho_file_name
+
+	def load_morpho_file(self):
+		if self.morpho_file_name is not None:
+			logger.info("Loading morphology")
+			if morphodita_available:
+				tagger = Tagger.load(self.morpho_file_name)
+			else:
+				logger.error("You need to install the MorphoDiTa Python bindings!")
+			
+			if not tagger:
+				logger.critical("Cannot load morphological dictionary from file '%s'.",  self.morpho_file_name)
+				sys.exit(1)
+			
+			self.lemmas = TaggedLemmas()
+			logger.info("Morphology loaded.")
+		else:
+			logger.info("No morphological dictionary specified. Inflectional morphology will not be available.")
+			self.tagger = None
 	
 	def segment_word(self, word, analysis=None):
 		"""Takes a string representation of the word form to segment and (optionally) its analysis (Lemma) returned by MorphoDiTa. Returns a list of strings representing the individual morphs of the word."""

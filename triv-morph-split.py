@@ -5,10 +5,11 @@ import unittest
 import argparse
 import logging
 import pickle
+import os
 
 from lexeme import Lexeme
 from segmentshandler import SegmentedLoader, SegmentedStorer
-from segmentace import Segmentace
+from segmentace_triv import Segmentace
 
 
 def parse_args():
@@ -22,7 +23,10 @@ def parse_args():
 	parser.add_argument("-t", "--to", metavar="FORMAT", dest="to_format", help="the format to write. Available: vbpe, hbpe, spl, hmorph. Default: vbpe.", default="vbpe", choices=["vbpe", "hbpe", "spl", "hmorph"])
 	#parser.add_argument("morpho", metavar="MORPHO", help="a path to the MorphoDiTa morphological resource.")
 
-	parser.add_argument("-s", "--save-pickled-segmenter", metavar="segmenter.pickle", dest="save", help="save pickled segmenter file to segmenter.pickle")
+	default_save = "segmenter.pickle"
+	parser.add_argument("-s", "--save-pickled-segmenter", default=default_save, dest="save", help="save pickled segmenter file to SAVE. Default: %s" % default_save)
+
+	parser.add_argument("-l", "--load-pickled-segmenter", default=default_save, dest="load", help="load pickled segmenter file from SAVE. Default: %s" % default_save)
 	
 	args = parser.parse_args()
 	return args
@@ -60,12 +64,27 @@ if __name__ == '__main__':
 	logger.info("Started.")
 	
 	args = parse_args()
-	
-	derinet_file_name = args.derinet
-	morfflex_file_name = args.morfflex
-	morpho_file_name = args.analyzer
-	
-	segmenter = Segmentace(derinet_file_name, morfflex_file_name, morpho_file_name)
+
+#	print(args)
+#	sys.exit()
+	if not os.path.exists(args.load):
+		logger.info("pickled segmenter file %s doesn't exist, loading a new one from source files" % args.load)
+		
+		derinet_file_name = args.derinet
+		morfflex_file_name = args.morfflex
+		morpho_file_name = args.analyzer
+		
+		segmenter = Segmentace(derinet_file_name, morfflex_file_name, morpho_file_name)
+
+		logger.info("saving segmenter to pickle file %s" % args.save)
+		with open(args.save, "wb") as f:
+			pickle.dump(segmenter, f)
+		logger.info("pickled segmenter saved")
+	else:
+		logger.info("pickled segmenter file %s found, stored segmenter will be used" % args.load)
+		with open(args.load, "rb") as f:
+			segmenter = pickle.load(f)
+	segmenter.load_morpho_file()
 	
 	logger.info("Ready to split STDIN.")
 	
